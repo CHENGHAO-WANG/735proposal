@@ -1,25 +1,138 @@
 \documentclass{article}
 
 \usepackage{amsmath, amssymb}
+\usepackage{hyperref}
+
 
 \title{Proposal: a zero-inflated negative binomial model for differential expression analysis in single-cell RNA-seq data}
-\author{Chenghao wang}
+\author{Chenghao Wang}
 \date{\today}
 
 \begin{document}
 
 \maketitle
 \section{Problem Statement}
+With advances in single-cell RNA-sequencing (scRNA-seq) technologies,
+research on gene expression profiles has reached the single-cell level,
+yet resulting in a key task of finding differentially expressed genes
+between conditions, along with the need for statistical approaches to
+achieve this.
 
 \section{Background}
+One of the simplest methods for differential expression (DE) analysis is to perform
+a Wilcoxon rank-sum test for each gene, which is also the default method in the widely-used
+Seuarat\cite{hao2024dictionary} toolkit. Nevertheless, this method is limited to two-group
+comparisons and lacks the flexibility to adjust for covariates.
+
+Besides, a natural idea is to directly apply the linear or generalized linear model based 
+methods proposed for bulk RNA-seq data, such as DESeq2\cite{love_moderated_2014}, 
+edgeR\cite{mccarthy_differential_2012} and limma\cite{law_voom_2014}, 
+to scRNA-seq data. But these methods cannot handle the excess zeros which are rare in
+bulk RNA-seq data but common in scRNA-seq data. Aggregating the cell-level data from each subject into
+pseduo-bulk data before applying these methods is a useful strategy, but it may lead to a loss of power 
+and is not applicable when the number of subjects is small.
+
+Several methods tailored to DE analysis of scRNA-seq data have been developed.
+SCDE\cite{kharchenko_bayesian_2014} and scDD\cite{korthauer_statistical_2016}
+are Bayesian methods based on mixture models. DEsingle\cite{miao_desingle_2018}
+utilizes a zero-inflated negative binomial distribution for DE analysis.
+Yet these methods cannot properly control for covariates or be generalized to multi-group
+comparisons.
+MAST\cite{finak_mast_2015} employs a hurdle model to fit the log-transformed expression data,
+while accouting for the excess zeros. But it does not distinguish 
+between technical (dropout) and biolgoical (non-expression) zeros.
 
 \section{Data}
+This method will be illustrated using the dataset by Islam et al.\cite{islam2011characterization},
+which is availabe at \href{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE29087}{GSE29087}.
+This dataset contains 48 embryonic stems cells and 44 embryonic fibroblasts in the mouse,
+sequenced by single-cell tagged reverse transcription (STRT) procedure.
+The 22,936 features will be filtered, retaining the coding genes with positive counts in at least 5 cells.
+We will also simulate data from zero-inflated negative binomial distributions.
+The simulation settings will be designed to reflect the properties of the real dataset
+by Islam et al.
+
 
 \section{Proposed Approach}
+The read count $Y_{gi}$ for gene $g$ in cell $i$ will be modeled using a 
+zero-inflated negative binomial model, as follows:
+\[
+\begin{aligned}
+& Y_{gi}|Z_{gi} = 0 \sim NB(s_{i}\mu_{gi}, \phi_{g}) \\
+& Y_{gi}|Z_{gi} = 1 \sim constant(0) \\
+& logit(P(Z_{gi} = 1)) = X_{g}\alpha_{g} \\
+& log(\mu_{gi}) = X_{g}\beta_{g}
+\end{aligned}
+\]
+$Z_{gi}$ is a latent variable indicating whether $Y_{gi}$ belongs to 
+the zero-inflated component or the negative binomial component.
+$s_i$ is the scale factor for normalization in cell $i$, which will be calculated using the same
+method as in DEsingle\cite{miao_desingle_2018}:
+\[
+\begin{aligned}
+& s_i = \underset{g}{\text{median}}
+\frac{Y_{gi}}{\left(\displaystyle\prod_{\substack{i = 1 \\ Y_{gi}>0}}^{m} Y_{gi}\right)^{1/m_g}}\\
+& m_g = \sum_{i=1}^{n} I(Y_{gi} > 0)
+\end{aligned}
+\]
+
+We will use the following three procedures to estimate the paramters ($\alpha_g$, $\beta_g$, $\phi_g$) in the model:
+\begin{itemize}
+    \item Use a Broyden-Fletcher-Goldfarb-Shanno (BFGS) algorithm, 
+    which jointly estimates all parameters. 
+    \item Use a Generalized Expectation-Maximization (GEM) algorithm. In the M-step,
+    the parameters are jointly updated using a Fisher's scoring algorithm.
+    \item Use a GEM algorithm. In the M-step, the parameters are alternately updated using a Fisher's scoring algorithm.
+\end{itemize}
+
+Since the number of cells with read counts belonging to the negative binomial component
+varies across genes, the estimation of $\phi_g$ may be less stable for some genes.
+To address this issue, we will use an empirical Bayes method to shrink 
+the gene-wise dispersion estimates toward the prior. Two priors will be considered:
+a common dispersion across genes  
+and a mean-dependent dispersion trend (fitted using a local regression).
+\[
+\log(\phi_g) \sim N(\log(\phi(\bar{\mu_g})), \tau^2),
+\]
+where $\phi$ is a constant (calculated as the mean of all gene-wise dispersions) 
+or a function of $\bar{\mu_g}$ (calculated as the fitted value on the mean-dispersion trend), 
+the mean of the normalized read counts ($Y_{gi}/s_i$) for gene $g$.
+We will use the residuals from the fitted trend to estimate the variance, $\sigma^2$, which
+arises from two sources: the sampling error and the prior \cite{wu_new_2013}.
+We will simulate data from $NB(s_i\hat{\mu}_{gi}, \phi(\bar{\mu_g}))$ and
+estimate $\phi$ by the method of moments. Then we will estimate 
+the sampling error variance, which will be subtracted from $\sigma^2$
+to obtain the prior variance, $\tau^2$.
+
+Likelihood ratio tests and Wald tests will be used to test for DE.
 
 \section{Evaluation Plan}
+First, we will apply the proposed method to the Islam et al. dataset
+and evaluate the results against their paper.
+Next, we will compare the proposed method with MAST in terms of type I error control by
+permuting the condition labels of the cells and assessing the distribution of the p-values.
+Lastly, we will compare the proposed method with MAST with respect to ROC curves using
+the simulated data.
 
 \section{Timeline}
 
+\begin{table}[ht]
+\centering
+\begin{tabular}{p{0.25\textwidth} p{0.65\textwidth}}
+\hline
+Period & Activities \\
+\hline
+Week 1 & Data preprocessing and derivation of model equations\\
+Weeks 2--3 & Implementation and testing of BFGS algorithm for parameter estimation \\ 
+Weeks 4--5 & Implementation and testing of GEM + Fisher' scoring algorithm for parameter estimation \\
+Week 6 & Implementation of empirical Bayes framework \\
+Week 7 & Data simulation and method evaluation \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\bibliographystyle{unsrt}
+\bibliography{ref}
 
 \end{document}
