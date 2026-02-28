@@ -1,0 +1,83 @@
+\documentclass[11pt]{article}
+
+\usepackage[letterpaper,margin=0.9in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\setstretch{1.03}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+\setlist[itemize]{leftmargin=1.2em,topsep=2pt,itemsep=1pt,parsep=0pt,partopsep=0pt}
+\titlespacing*{\section}{0pt}{0.35em}{0.2em}
+\titleformat{\section}{\bfseries\normalsize}{}{0pt}{}
+\pagestyle{empty}
+\setlength{\bibsep}{1pt}
+
+\begin{document}
+
+\begin{center}
+{\large\bfseries Proposal: a zero-inflated negative binomial model for differential expression analysis in single-cell RNA-seq data}\\[-0.2em]
+{\normalsize Chenghao Wang \quad | \quad \today}
+\end{center}
+\vspace{-0.2em}
+\hrule
+\vspace{0.35em}
+
+\section*{Problem Statement}
+With advances in single-cell RNA-sequencing (scRNA-seq) technologies,
+the development of statistical approaches for finding differentially
+expressed genes become important.
+
+\section*{Background}
+A wide variety of tools exist for differential expression (DE)
+analysis, ranging from simple non-parametric tests\cite{hao2024dictionary}, through
+linear\cite{law_voom_2014}\cite{finak_mast_2015} and generalized linear model\cite{love_moderated_2014}\cite{mccarthy_differential_2012}\cite{miao_desingle_2018} 
+based methods, to Bayesian methods
+based on mixture models\cite{kharchenko_bayesian_2014}\cite{korthauer_statistical_2016}.
+
+\section*{Data}
+We will analyze the dataset by Islam et al.\cite{islam2011characterization}, which is
+available at \href{https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE29087}{GSE29087}.
+This dataset contains 48 embryonic stems cells and 44 embryonic fibroblasts
+in the mouse. The 22,936 features will be filtered, retaining the coding
+genes with positive counts in at least 5 cells. We will also simulate data
+from zero-inflated negative binomial distributions.
+The simulation settings will be designed to reflect the properites
+of the dataset by Islam et al.
+
+\section*{Proposed Approach} 
+The read counts for each gene will be modeled individually using a zero-inflated negative binomial model.
+The normalization will be performed using the same method as in DEsingle\cite{miao_desingle_2018}.
+We will use a BFGS algorithm and an generalized EM (GEM) algorithm plus
+a Fisher's scoring algorithm in the M-step for estimation,
+and we will compare the estimates produced by these two optimizers.
+An empirical Bayes method will be used to shrink the gene-wise dispersion estimates.
+Likelihood ratio tests and Wald tests will be used to test for DE.
+
+\section*{Evaluation plan}
+First, we will apply the proposed method to the Islam et al. dataset
+and evaluate the results against their paper.
+Next, we will compare the proposed method with MAST\cite{finak_mast_2015} in terms of type I error control by
+permuting the condition labels of the cells and assessing the distribution of the p-values.
+Lastly, we will compare the proposed method with MAST with respect to ROC curves using
+the simulated data.
+
+\section*{Timeline}
+\textbf{Week 1}: Derivation of model equations  \\
+\textbf{Week 2--3:} Implementation of BFGS \\
+\textbf{Week 4--5:} Implementation of GEM + Fisher's scoring \\
+\textbf{Week 6:} Implementation of empirical Bayes framework \\
+\textbf{Week 7:} Data simulation and method evaluation
+
+{\small
+\bibliographystyle{unsrt}
+\bibliography{../ref}
+}
+
+\end{document}
