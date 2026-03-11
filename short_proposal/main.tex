@@ -52,11 +52,16 @@ The simulation settings will be designed to reflect the properites
 of the dataset by Islam et al.
 
 \section*{Proposed Approach} 
-The read counts for each gene will be modeled individually using a zero-inflated negative binomial model.
+The read counts for each gene will be modeled individually using a zero-inflated negative binomial (ZINB) model.
 The normalization will be performed using the same method as in DEsingle\cite{miao_desingle_2018}.
 We will use a BFGS algorithm and an generalized EM (GEM) algorithm plus
 a Fisher's scoring algorithm in the M-step for estimation,
 and we will compare the estimates produced by these two optimizers.
+For each gene, We will fit an NB model and then compare the
+expected to the observed probability of zeros to determine whether to
+fit a ZINB model.
+We will use independent normal priors to shrink the coefficients of
+the ZI component for protection against linear seperation.
 An empirical Bayes method will be used to shrink the gene-wise dispersion estimates.
 Likelihood ratio tests and Wald tests will be used to test for DE.
 
@@ -67,6 +72,9 @@ Next, we will compare the proposed method with MAST\cite{finak_mast_2015} in ter
 permuting the condition labels of the cells and assessing the distribution of the p-values.
 Lastly, we will compare the proposed method with MAST with respect to ROC curves using
 the simulated data.
+We will also evaluate the performance of the proposed method under
+extreme circustances
+where ZI probabilities are close to 0 or 1.
 
 \section*{Timeline}
 \textbf{Week 1}: Derivation of model equations  \\
